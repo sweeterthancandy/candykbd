@@ -1,0 +1,6 @@
+kbd.exe:
+	$(CC) kbd.c /link user32.lib
+
+.PHONY: install
+install: kbd.exe
+	cp kbd.exe L:\bin
