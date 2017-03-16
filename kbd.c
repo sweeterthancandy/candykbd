@@ -356,36 +356,37 @@ void kdb_test(){
   #endif
 }
 
-#if 0
 int kdb_main(int argc, char* argv[]){
   int i;
   KbdContext ctx = {0};
   KbdConsumer printConsumer = { KbdPrintOp, NULL };
+  KbdConsumer executeConsumer = { KbdExecuteOp, &ctx };
+  
   ctx.consumers[0] = &printConsumer;
+  ctx.consumers[1] = &executeConsumer;
 
   for(i=1;i!=argc;++i){
     if(strcmp(argv[i],"--sleep")==0){
       ++i;
-      config_sleep_ms = atoi(argv[i]);
+      ctx.config_sleep_ms = atoi(argv[i]);
       continue;
     }
     if(strcmp(argv[i],"--alt-sleep")==0){
       ++i;
-      config_alt_sleep_ms = atoi(argv[i]);
+      ctx.config_alt_sleep_ms = atoi(argv[i]);
       continue;
     }
     break;
   }
   // Sleep(0) rescheduales the process, don't want this
-  if( config_sleep_ms ){
-    Sleep(config_sleep_ms);
+  if( ctx.config_sleep_ms ){
+    Sleep(ctx.config_sleep_ms);
   }
   for(;i!=argc;++i){
-    parse(argv[i]);
+    parse(&ctx,argv[i]);
   }
   return 0;
 }
-#endif 
 
 void test_main(){
   KbdContext ctx = {0};
@@ -402,15 +403,15 @@ void test_main(){
 }
 
 
-#if 0
 int main(int argc, char** argv){
   return kdb_main(argc, argv);
 }
-#endif
 
+#if 0
 int main(){
   test_main();
 }
+#endif
 
 #if 0
 int main(){
