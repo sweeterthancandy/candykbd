@@ -1,3 +1,4 @@
+RM=del /Q
 
 kbd.exe: kbd.c driver.c
 	$(CC) kbd.c driver.c /link user32.lib -out:kbd.exe
@@ -5,3 +6,7 @@ kbd.exe: kbd.c driver.c
 .PHONY: install
 install: kbd.exe
 	cp kbd.exe L:\bin
+
+.PHONY: clean
+clean:
+	$(RM) *.exe *.obj
