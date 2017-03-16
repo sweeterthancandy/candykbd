@@ -105,6 +105,15 @@ typedef struct op_code_t{
   char modifiers;
 }op_code_t;
 
+typedef enum ctrl_type{
+  ctrl_sleep
+}ctrl_type;
+
+typedef struct ctrl_t{
+  ctrl_type type;
+  char arg0[64];
+}ctrl_t;
+
 typedef struct parser_context{
   const char* seq;
   const char* iter;
@@ -126,6 +135,9 @@ typedef struct KbdContext{
 
 void dispatch_consumers( KbdContext* ctx, op_code_t* op){
   size_t i=0;
+  if( ctx->config_op_sleep_ms ){
+    Sleep(ctx->config_op_sleep_ms);
+  }
   for(; i!= 16;++i){
     KbdConsumer* consumer = ctx->consumers[i];
     if( consumer ){
@@ -231,7 +243,7 @@ op_code_t* parse_meta(parser_context* psr){
   return op;
 }
 // just need to find > but not \>
-const char* find_extended_end(parser_context* psr){
+const char* find_token_end(parser_context* psr, char token){
   const char* iter = psr->iter;
   for(;*iter;){
     switch(*iter){
@@ -241,9 +253,9 @@ const char* find_extended_end(parser_context* psr){
         return NULL;
       ++iter;
       break;
-    case '>':
-      return iter;
     default:
+      if( *iter == token)
+        return iter;
       ++iter;
       break;
     }
@@ -254,7 +266,7 @@ op_code_t* parse_extended(parser_context* psr){
   const char* end;
   size_t len;
   ++psr->iter;
-  end = find_extended_end(psr);
+  end = find_token_end(psr, '>');
   if( end == 0 ){
     fprintf(stderr,"bad extended");
   }
@@ -298,6 +310,35 @@ op_code_t* parse_extended(parser_context* psr){
 
   return 0;
 }
+
+void apply_ctrl(parser_context* psr){
+  const char* end;
+  size_t len;
+  ++psr->iter;
+  end = find_token_end(psr, '}');
+  if( end == 0 ){
+    fprintf(stderr,"bad extended");
+  }
+  len = end - psr->iter;
+
+  if( _strnicmp( "sleep(", psr->iter +1, 6) ){
+    char sbuf[64];
+    const char* from = psr->iter + 6;
+    char* to = sbuf;
+    int to_sleep;
+    for(; *from != '\0' && isdigit(*from); ++from, ++to){
+      *to = *from;
+    }
+    *to = '\0';
+    to_sleep = atoi(sbuf);
+    printf("sleeping for %i ms\n", to_sleep);
+    Sleep(to_sleep);
+    psr->iter = end + 1;
+  } else{
+    fprintf(stderr,"unable to parse ctrl %s\n", psr->iter );
+    exit(EXIT_FAILURE);
+  }
+}
 void parse_next(KbdContext* ctx, parser_context* psr){
   op_code_t* op;
   switch(*psr->iter){
@@ -307,6 +348,9 @@ void parse_next(KbdContext* ctx, parser_context* psr){
   case '<':
     op = parse_extended(psr);
     break;
+  case '{':
+    apply_ctrl(psr);
+    return;
   default:
     op = parse_literal(psr);
     break;
@@ -376,6 +420,11 @@ int kdb_main(int argc, char* argv[]){
       ctx.config_alt_sleep_ms = atoi(argv[i]);
       continue;
     }
+    if(strcmp(argv[i],"--op-sleep")==0){
+      ++i;
+      ctx.config_op_sleep_ms = atoi(argv[i]);
+      continue;
+    }
     break;
   }
   // Sleep(0) rescheduales the process, don't want this
@@ -399,6 +448,7 @@ void test_main(){
   Sleep(200);
   parse(&ctx, "hello");
   parse(&ctx, "world");
+  parse(&ctx, "h{sleep(1000)}w");
   parse(&ctx, "<c-f>");
 }
 
@@ -406,25 +456,3 @@ void test_main(){
 int main(int argc, char** argv){
   return kdb_main(argc, argv);
 }
-
-#if 0
-int main(){
-  test_main();
-}
-#endif
-
-#if 0
-int main(){
-   const char* args[] = {
-    "dummy",
-    #if 0
-    "--sleep",
-    "1000",
-    #endif
-    "--alt-sleep", 
-    "25",
-    "<m-tab>Mr Gerry K Candy<TAB>g3rc4n@gmail.com<TAB>07445615041<TAB>4 Lydd Road<Tab>Bexleyheath<TAB><TAB>Kent<TAB>Da7 5PB<TAB><TAB><TAB>visa<TAB>4921816436289950<TAB>08<TAB>2019<TAB>029<TAB><space><return>"
-  };
-  return kdb_main(sizeof(args)/sizeof(*args), args);
-}
-#endif
